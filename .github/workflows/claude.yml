@@ -48,3 +48,6 @@ jobs:
 
           # Varianta B: API klíč z console.anthropic.com (platí se za spotřebu):
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Claude vytváří PR vždy do větve dev (ne do main)
+          base_branch: dev
