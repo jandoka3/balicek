@@ -1,5 +1,7 @@
 # balici_appka
 
+Balíček je mobilní aplikace (Android a iOS) pro vytváření a používání seznamů věcí na balení, která podle zvoleného počtu dní automaticky spočítá potřebné množství u každé položky.
+
 A new Flutter project.
 
 ## Getting Started
