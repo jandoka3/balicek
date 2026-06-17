@@ -14,13 +14,39 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build iOS (debug)
-        run: flutter build ios --debug --no-codesign
+      - name: Build iOS (debug, podepsané)
+        # POZOR: žádné --no-codesign! Na fyzický iPhone musí být app podepsaná.
+        # Projekt používá automatické podepisování (Team JL43Q5ZK6K, bundle cz.jandova.balicek).
+        run: flutter build ios --debug
 
-      - name: Install on iPhone via xcrun
+      - name: Wait for iPhone to be unlocked & install
         run: |
           DEVICE_ID="00008120-001168DE0CD8201E"
           APP_PATH="build/ios/iphoneos/Runner.app"
-          xcrun devicectl device install app \
-            --device "$DEVICE_ID" \
-            "$APP_PATH"
+
+          echo "📱 Cílové zařízení: $DEVICE_ID"
+          echo "⚠️  ODEMKNI iPhone – instalace vyžaduje odemčený přístroj."
+          echo "    Workflow bude čekat až 10 minut."
+
+          MAX_ATTEMPTS=20   # 20 × 30 s = 10 minut
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "--- Pokus $i/$MAX_ATTEMPTS ---"
+            if xcrun devicectl device install app \
+                --device "$DEVICE_ID" \
+                "$APP_PATH" 2>&1; then
+              echo "✅ Instalace proběhla úspěšně."
+              exit 0
+            fi
+
+            LAST_ERR=$?
+            echo "Pokus $i selhal (exit $LAST_ERR). Čekám 30 s a zkusím znovu..."
+            echo "   → Ujisti se, že je iPhone odemčený a připojený přes WiFi."
+            sleep 30
+          done
+
+          echo "❌ Instalace selhala po $MAX_ATTEMPTS pokusech."
+          echo "   Zkontroluj:"
+          echo "   1) iPhone je odemčený"
+          echo "   2) iPhone je ve stejné WiFi síti jako runner"
+          echo "   3) Zařízení je spárováno: xcrun devicectl list devices"
+          exit 1
