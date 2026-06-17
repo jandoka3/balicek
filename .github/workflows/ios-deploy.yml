@@ -1,0 +1,26 @@
+# iOS deploy: po mergi do dev sestaví appku a nainstaluje ji na iPhone přes WiFi
+name: iOS Deploy
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy-ios:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build iOS (debug)
+        run: flutter build ios --debug --no-codesign
+
+      - name: Install on iPhone via xcrun
+        run: |
+          DEVICE_ID="00008120-001168DE0CD8201E"
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          xcrun devicectl device install app \
+            --device "$DEVICE_ID" \
+            "$APP_PATH"
