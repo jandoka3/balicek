@@ -34,4 +34,7 @@ class PackingList {
     required this.createdAt,
     required this.updatedAt,
   }) : items = items ?? <PackingItem>[];
+
+  /// Počet sbalených (odškrtnutých) položek.
+  int get packedCount => items.where((i) => i.checked).length;
 }

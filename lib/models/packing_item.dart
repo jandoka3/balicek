@@ -34,4 +34,20 @@ class PackingItem {
     this.value = 1,
     this.checked = false,
   });
+
+  PackingItem copyWith({
+    String? id,
+    String? name,
+    QuantityMode? mode,
+    int? value,
+    bool? checked,
+  }) {
+    return PackingItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      mode: mode ?? this.mode,
+      value: value ?? this.value,
+      checked: checked ?? this.checked,
+    );
+  }
 }
