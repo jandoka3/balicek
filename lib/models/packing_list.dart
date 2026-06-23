@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 
+import 'packing_category.dart';
 import 'packing_item.dart';
 
 part 'packing_list.g.dart';
@@ -26,6 +27,10 @@ class PackingList {
   @HiveField(5)
   DateTime updatedAt;
 
+  /// Kategorie seznamu (plochý seznam, strom přes `parentId`).
+  @HiveField(6)
+  List<PackingCategory> categories;
+
   PackingList({
     required this.id,
     required this.name,
@@ -33,7 +38,9 @@ class PackingList {
     List<PackingItem>? items,
     required this.createdAt,
     required this.updatedAt,
-  }) : items = items ?? <PackingItem>[];
+    List<PackingCategory>? categories,
+  })  : items = items ?? <PackingItem>[],
+        categories = categories ?? <PackingCategory>[];
 
   /// Počet sbalených (odškrtnutých) položek.
   int get packedCount => items.where((i) => i.checked).length;

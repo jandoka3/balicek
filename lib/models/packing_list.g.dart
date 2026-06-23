@@ -23,13 +23,14 @@ class PackingListAdapter extends TypeAdapter<PackingList> {
       items: (fields[3] as List).cast<PackingItem>(),
       createdAt: fields[4] as DateTime,
       updatedAt: fields[5] as DateTime,
+      categories: (fields[6] as List?)?.cast<PackingCategory>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, PackingList obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class PackingListAdapter extends TypeAdapter<PackingList> {
       ..writeByte(4)
       ..write(obj.createdAt)
       ..writeByte(5)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(6)
+      ..write(obj.categories);
   }
 
   @override

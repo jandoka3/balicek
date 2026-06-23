@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 
+import '../models/packing_category.dart';
 import '../models/packing_item.dart';
 import '../models/packing_list.dart';
 import '../models/quantity_mode.dart';
@@ -20,10 +21,26 @@ List<PackingItem> itemsFromImport(String input) {
       .toList();
 }
 
-/// Vytvoří kopii seznamu: nové id, nový název, zkopírované položky
-/// (každá s novým id), všechna zaškrtnutí vynulovaná.
+/// Vytvoří kopii seznamu: nové id, nový název, zkopírované položky i kategorie
+/// (každá s novým id, zachovaná stromová struktura a zařazení položek),
+/// všechna zaškrtnutí vynulovaná.
 PackingList copyList(PackingList source, String newName) {
   final now = DateTime.now();
+
+  // Mapa starých id kategorií na nová, ať se dají přepojit rodiče i položky.
+  final idMap = <String, String>{
+    for (final c in source.categories) c.id: _uuid.v4(),
+  };
+
+  final copiedCategories = source.categories
+      .map((c) => PackingCategory(
+            id: idMap[c.id]!,
+            name: c.name,
+            parentId: c.parentId == null ? null : idMap[c.parentId],
+            expanded: c.expanded,
+          ))
+      .toList();
+
   final copiedItems = source.items
       .map((i) => PackingItem(
             id: _uuid.v4(),
@@ -31,6 +48,7 @@ PackingList copyList(PackingList source, String newName) {
             mode: i.mode,
             value: i.value,
             checked: false,
+            categoryId: i.categoryId == null ? null : idMap[i.categoryId],
           ))
       .toList();
 
@@ -39,6 +57,7 @@ PackingList copyList(PackingList source, String newName) {
     name: newName,
     days: source.days,
     items: copiedItems,
+    categories: copiedCategories,
     createdAt: now,
     updatedAt: now,
   );
@@ -68,13 +87,28 @@ PackingList listFromImport(String name, String input) {
   );
 }
 
-/// Vytvoří jednu novou položku.
-PackingItem newItem(String name, QuantityMode mode, int value) {
+/// Vytvoří jednu novou položku, volitelně rovnou v kategorii [categoryId].
+PackingItem newItem(
+  String name,
+  QuantityMode mode,
+  int value, {
+  String? categoryId,
+}) {
   return PackingItem(
     id: _uuid.v4(),
     name: name,
     mode: mode,
     value: value < 1 ? 1 : value,
     checked: false,
+    categoryId: categoryId,
+  );
+}
+
+/// Vytvoří novou kategorii, volitelně jako podkategorii [parentId].
+PackingCategory newCategory(String name, {String? parentId}) {
+  return PackingCategory(
+    id: _uuid.v4(),
+    name: name,
+    parentId: parentId,
   );
 }

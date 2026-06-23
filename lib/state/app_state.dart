@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
+import '../logic/category_tree.dart';
+import '../models/packing_category.dart';
 import '../models/packing_item.dart';
 import '../models/packing_list.dart';
 
@@ -110,6 +112,83 @@ class AppState extends ChangeNotifier {
     if (list == null) return;
     final item = list.items.removeAt(oldIndex);
     list.items.insert(newIndex, item);
+    await _save(list);
+  }
+
+  Future<void> moveItemToCategory(
+    String listId,
+    String itemId,
+    String? categoryId,
+  ) async {
+    final list = listById(listId);
+    if (list == null) return;
+    final idx = list.items.indexWhere((i) => i.id == itemId);
+    if (idx == -1) return;
+    list.items[idx].categoryId = categoryId;
+    await _save(list);
+  }
+
+  // --- Kategorie ---
+
+  Future<void> addCategory(String listId, PackingCategory category) async {
+    final list = listById(listId);
+    if (list == null) return;
+    list.categories.add(category);
+    await _save(list);
+  }
+
+  Future<void> renameCategory(
+    String listId,
+    String categoryId,
+    String newName,
+  ) async {
+    final list = listById(listId);
+    if (list == null) return;
+    final cat = categoryById(list, categoryId);
+    if (cat == null) return;
+    cat.name = newName;
+    await _save(list);
+  }
+
+  /// Změní rodiče kategorie. Vrátí `false`, pokud by vznikl cyklus.
+  Future<bool> setCategoryParent(
+    String listId,
+    String categoryId,
+    String? newParentId,
+  ) async {
+    final list = listById(listId);
+    if (list == null) return false;
+    if (!canSetCategoryParent(list, categoryId, newParentId)) return false;
+    final cat = categoryById(list, categoryId);
+    if (cat == null) return false;
+    cat.parentId = newParentId;
+    await _save(list);
+    return true;
+  }
+
+  Future<void> toggleCategoryExpanded(String listId, String categoryId) async {
+    final list = listById(listId);
+    if (list == null) return;
+    final cat = categoryById(list, categoryId);
+    if (cat == null) return;
+    cat.expanded = !cat.expanded;
+    await _save(list);
+  }
+
+  /// Smaže kategorii. Pokud [deleteItems] je `true`, smaže i položky a
+  /// podkategorie; jinak je přesune o úroveň výš.
+  Future<void> deleteCategory(
+    String listId,
+    String categoryId, {
+    required bool deleteItems,
+  }) async {
+    final list = listById(listId);
+    if (list == null) return;
+    if (deleteItems) {
+      deleteCategoryWithItems(list, categoryId);
+    } else {
+      deleteCategoryKeepItems(list, categoryId);
+    }
     await _save(list);
   }
 

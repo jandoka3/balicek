@@ -27,12 +27,17 @@ class PackingItem {
   @HiveField(4)
   bool checked;
 
+  /// Id kategorie, do které položka patří, nebo `null` (bez kategorie).
+  @HiveField(5)
+  String? categoryId;
+
   PackingItem({
     required this.id,
     required this.name,
     this.mode = QuantityMode.fixed,
     this.value = 1,
     this.checked = false,
+    this.categoryId,
   });
 
   PackingItem copyWith({
@@ -41,6 +46,8 @@ class PackingItem {
     QuantityMode? mode,
     int? value,
     bool? checked,
+    String? categoryId,
+    bool clearCategory = false,
   }) {
     return PackingItem(
       id: id ?? this.id,
@@ -48,6 +55,7 @@ class PackingItem {
       mode: mode ?? this.mode,
       value: value ?? this.value,
       checked: checked ?? this.checked,
+      categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
     );
   }
 }

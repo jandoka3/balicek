@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
+import 'models/packing_category.dart';
 import 'models/packing_item.dart';
 import 'models/packing_list.dart';
 import 'models/quantity_mode.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
   await Hive.initFlutter();
 
   Hive.registerAdapter(QuantityModeAdapter());
+  Hive.registerAdapter(PackingCategoryAdapter());
   Hive.registerAdapter(PackingItemAdapter());
   Hive.registerAdapter(PackingListAdapter());
 

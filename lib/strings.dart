@@ -60,4 +60,27 @@ class S {
   static const importHint =
       'Vlož položky – každou na nový řádek nebo oddělené čárkami';
   static const importEmpty = 'Nenašla jsem žádné položky k importu';
+
+  // Kategorie
+  static const category = 'Kategorie';
+  static const addCategory = 'Přidat kategorii';
+  static const addSubcategory = 'Přidat podkategorii';
+  static const newCategoryTitle = 'Nová kategorie';
+  static const categoryName = 'Název kategorie';
+  static const categoryNameHint = 'např. Oblečení';
+  static const renameCategory = 'Přejmenovat kategorii';
+  static const deleteCategory = 'Smazat kategorii';
+  static const addItemToCategory = 'Přidat položku do kategorie';
+  static const noCategory = 'Bez kategorie';
+  static const moveToCategory = 'Přesunout do kategorie';
+  static const chooseCategory = 'Zvolit kategorii';
+  static const cycleNotAllowed =
+      'Kategorii nelze vložit do sebe sama ani do své podkategorie';
+
+  /// Dialog při mazání kategorie – co s položkami uvnitř.
+  static const deleteCategoryTitle = 'Smazat kategorii';
+  static const deleteCategoryBody =
+      'Co se má stát s položkami a podkategoriemi v této kategorii?';
+  static const deleteCategoryAndItems = 'Smazat i položky';
+  static const deleteCategoryMoveUp = 'Přesunout o úroveň výš';
 }
