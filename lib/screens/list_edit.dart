@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../logic/category_tree.dart';
 import '../logic/list_actions.dart';
+import '../models/packing_category.dart';
 import '../models/packing_item.dart';
+import '../models/packing_list.dart';
 import '../models/quantity_mode.dart';
 import '../state/app_state.dart';
 import '../strings.dart';
@@ -22,10 +25,17 @@ class ListEditScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: Text('Seznam nenalezen')));
     }
 
+    final empty = list.items.isEmpty && list.categories.isEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(S.editTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.create_new_folder_outlined),
+            tooltip: S.addCategory,
+            onPressed: () => _onAddCategory(context, parentId: null),
+          ),
           IconButton(
             icon: const Icon(Icons.text_snippet_outlined),
             tooltip: S.importTitle,
@@ -33,40 +43,47 @@ class ListEditScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: list.items.isEmpty
+      body: empty
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text(S.emptyItems, textAlign: TextAlign.center),
               ),
             )
-          : ReorderableListView.builder(
-              itemCount: list.items.length,
-              onReorderItem: (oldIndex, newIndex) =>
-                  state.reorderItems(list.id, oldIndex, newIndex),
-              itemBuilder: (context, i) {
-                final item = list.items[i];
-                return _EditItemTile(
-                  key: ValueKey(item.id),
-                  listId: listId,
-                  item: item,
-                  index: i,
-                );
-              },
-            ),
+          : _EditTree(listId: listId, list: list),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _onAddItem(context),
+        onPressed: () => _onAddItem(context, categoryId: null),
         icon: const Icon(Icons.add),
         label: const Text(S.addItem),
       ),
     );
   }
 
-  Future<void> _onAddItem(BuildContext context) async {
+  Future<void> _onAddItem(
+    BuildContext context, {
+    required String? categoryId,
+  }) async {
     final result = await showItemEditor(context);
     if (result == null || !context.mounted) return;
-    final item = newItem(result.name, result.mode, result.value);
+    final item =
+        newItem(result.name, result.mode, result.value, categoryId: categoryId);
     await context.read<AppState>().addItem(listId, item);
+  }
+
+  Future<void> _onAddCategory(
+    BuildContext context, {
+    required String? parentId,
+  }) async {
+    final name = await showTextInputDialog(
+      context,
+      title: parentId == null ? S.newCategoryTitle : S.addSubcategory,
+      hint: S.categoryNameHint,
+      confirmLabel: S.create,
+    );
+    if (name == null || !context.mounted) return;
+    await context
+        .read<AppState>()
+        .addCategory(listId, newCategory(name, parentId: parentId));
   }
 
   Future<void> _onImport(BuildContext context) async {
@@ -83,16 +100,190 @@ class ListEditScreen extends StatelessWidget {
   }
 }
 
+/// Stromové zobrazení pro editaci: kategorie i položky.
+class _EditTree extends StatelessWidget {
+  final String listId;
+  final PackingList list;
+  const _EditTree({required this.listId, required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    _buildNodes(rows, parentId: null, depth: 0);
+    return ListView(children: rows);
+  }
+
+  void _buildNodes(
+    List<Widget> rows, {
+    required String? parentId,
+    required int depth,
+  }) {
+    for (final cat in childCategories(list, parentId)) {
+      rows.add(_EditCategoryTile(
+        key: ValueKey('cat_${cat.id}'),
+        listId: listId,
+        category: cat,
+        depth: depth,
+      ));
+      if (cat.expanded) {
+        _buildNodes(rows, parentId: cat.id, depth: depth + 1);
+      }
+    }
+    for (final item in itemsInCategory(list, parentId)) {
+      rows.add(_EditItemTile(
+        key: ValueKey('item_${item.id}'),
+        listId: listId,
+        list: list,
+        item: item,
+        depth: depth,
+      ));
+    }
+  }
+}
+
+class _EditCategoryTile extends StatelessWidget {
+  final String listId;
+  final PackingCategory category;
+  final int depth;
+
+  const _EditCategoryTile({
+    super.key,
+    required this.listId,
+    required this.category,
+    required this.depth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.read<AppState>();
+    return Padding(
+      padding: EdgeInsets.only(left: depth * 16.0),
+      child: ListTile(
+        onTap: () => state.toggleCategoryExpanded(listId, category.id),
+        leading: Icon(category.expanded
+            ? Icons.keyboard_arrow_down
+            : Icons.keyboard_arrow_right),
+        title: Row(
+          children: [
+            const Icon(Icons.folder_outlined, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(category.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: S.addItemToCategory,
+              onPressed: () => _onAddItem(context),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (v) => _onMenu(context, v),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'subcat', child: Text(S.addSubcategory)),
+                PopupMenuItem(value: 'rename', child: Text(S.rename)),
+                PopupMenuItem(value: 'delete', child: Text(S.delete)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onAddItem(BuildContext context) async {
+    final state = context.read<AppState>();
+    final result = await showItemEditor(context);
+    if (result == null || !context.mounted) return;
+    final item =
+        newItem(result.name, result.mode, result.value, categoryId: category.id);
+    await state.addItem(listId, item);
+    if (!category.expanded) {
+      await state.toggleCategoryExpanded(listId, category.id);
+    }
+  }
+
+  Future<void> _onMenu(BuildContext context, String action) async {
+    final state = context.read<AppState>();
+    switch (action) {
+      case 'subcat':
+        final name = await showTextInputDialog(
+          context,
+          title: S.addSubcategory,
+          hint: S.categoryNameHint,
+          confirmLabel: S.create,
+        );
+        if (name == null || !context.mounted) return;
+        await state.addCategory(
+            listId, newCategory(name, parentId: category.id));
+        break;
+      case 'rename':
+        final name = await showTextInputDialog(
+          context,
+          title: S.renameCategory,
+          initialValue: category.name,
+          confirmLabel: S.save,
+        );
+        if (name == null) return;
+        await state.renameCategory(listId, category.id, name);
+        break;
+      case 'delete':
+        await _onDelete(context);
+        break;
+    }
+  }
+
+  Future<void> _onDelete(BuildContext context) async {
+    final state = context.read<AppState>();
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(S.deleteCategoryTitle),
+        content: const Text(S.deleteCategoryBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(S.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'moveup'),
+            child: const Text(S.deleteCategoryMoveUp),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, 'delete'),
+            child: const Text(S.deleteCategoryAndItems),
+          ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    await state.deleteCategory(
+      listId,
+      category.id,
+      deleteItems: choice == 'delete',
+    );
+  }
+}
+
 class _EditItemTile extends StatelessWidget {
   final String listId;
+  final PackingList list;
   final PackingItem item;
-  final int index;
+  final int depth;
 
   const _EditItemTile({
     super.key,
     required this.listId,
+    required this.list,
     required this.item,
-    required this.index,
+    required this.depth,
   });
 
   @override
@@ -114,14 +305,13 @@ class _EditItemTile extends StatelessWidget {
         destructive: true,
       ),
       onDismissed: (_) => state.deleteItem(listId, item.id),
-      child: ListTile(
-        title: Text(item.name),
-        subtitle: Text(_modeLabel(item)),
-        trailing: ReorderableDragStartListener(
-          index: index,
-          child: const Icon(Icons.drag_handle),
+      child: Padding(
+        padding: EdgeInsets.only(left: depth * 16.0),
+        child: ListTile(
+          title: Text(item.name),
+          subtitle: Text(_modeLabel(item)),
+          onTap: () => _onEdit(context),
         ),
-        onTap: () => _onEdit(context),
       ),
     );
   }
@@ -138,13 +328,18 @@ class _EditItemTile extends StatelessWidget {
   }
 
   Future<void> _onEdit(BuildContext context) async {
-    final result = await showItemEditor(context, existing: item);
+    final result = await showItemEditor(
+      context,
+      existing: item,
+      list: list,
+    );
     if (result == null || !context.mounted) return;
     final updated = item.copyWith(
       name: result.name,
       mode: result.mode,
       value: result.value,
     );
+    updated.categoryId = result.categoryId;
     await context.read<AppState>().updateItem(listId, updated);
   }
 }
@@ -154,21 +349,32 @@ class ItemEditorResult {
   final String name;
   final QuantityMode mode;
   final int value;
+  final String? categoryId;
   ItemEditorResult({
     required this.name,
     required this.mode,
     required this.value,
+    this.categoryId,
   });
 }
 
 /// Dialog pro přidání/úpravu položky (název + režim množství + hodnota).
+///
+/// Pokud je předán [list], zobrazí se i výběr kategorie (jinak se kategorie
+/// zachová z [existing], případně zůstane prázdná).
 Future<ItemEditorResult?> showItemEditor(
   BuildContext context, {
   PackingItem? existing,
+  PackingList? list,
 }) {
   final nameController = TextEditingController(text: existing?.name ?? '');
   var mode = existing?.mode ?? QuantityMode.fixed;
   var value = existing?.value ?? 1;
+  String? categoryId = existing?.categoryId;
+
+  final categories = list == null
+      ? <({PackingCategory category, int depth})>[]
+      : flattenedCategories(list);
 
   return showDialog<ItemEditorResult>(
     context: context,
@@ -239,6 +445,31 @@ Future<ItemEditorResult?> showItemEditor(
                       ),
                     ],
                   ),
+                  if (list != null) ...[
+                    const SizedBox(height: 16),
+                    Text(S.category,
+                        style: Theme.of(ctx).textTheme.labelLarge),
+                    const SizedBox(height: 4),
+                    DropdownButton<String?>(
+                      isExpanded: true,
+                      value: categoryId,
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(S.noCategory),
+                        ),
+                        for (final e in categories)
+                          DropdownMenuItem<String?>(
+                            value: e.category.id,
+                            child: Text(
+                              '${'   ' * e.depth}${e.category.name}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (v) => setLocal(() => categoryId = v),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -253,7 +484,12 @@ Future<ItemEditorResult?> showItemEditor(
                   if (name.isEmpty) return;
                   Navigator.pop(
                     ctx,
-                    ItemEditorResult(name: name, mode: mode, value: value),
+                    ItemEditorResult(
+                      name: name,
+                      mode: mode,
+                      value: value,
+                      categoryId: categoryId,
+                    ),
                   );
                 },
                 child: const Text(S.save),
