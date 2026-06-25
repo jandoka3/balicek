@@ -14,10 +14,12 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build iOS (debug, podepsané)
+      - name: Build iOS (release, podepsané)
         # POZOR: žádné --no-codesign! Na fyzický iPhone musí být app podepsaná.
         # Projekt používá automatické podepisování (Team JL43Q5ZK6K, bundle cz.jandova.balicek).
-        run: flutter build ios --debug
+        # MUSÍ být --release: debug build se po spuštění z plochy (bez připojeného
+        # počítače / `flutter run`) hned ukončí, protože čeká na připojení k debuggeru.
+        run: flutter build ios --release
 
       - name: Wait for iPhone to be unlocked & install
         run: |
