@@ -183,4 +183,85 @@ void main() {
       expect(list.items.length, 2);
     });
   });
+
+  group('moveItemInList', () {
+    final now = DateTime(2026, 1, 1);
+    PackingList listWithItems() => PackingList(
+          id: 'l',
+          name: 'Test',
+          createdAt: now,
+          updatedAt: now,
+          categories: [
+            PackingCategory(id: 'c1', name: 'Oblečení'),
+            PackingCategory(id: 'c2', name: 'Hygiena'),
+          ],
+          items: [
+            PackingItem(id: 'a', name: 'Tričko', categoryId: 'c1'),
+            PackingItem(id: 'b', name: 'Kalhoty', categoryId: 'c1'),
+            PackingItem(id: 'c', name: 'Kartáček', categoryId: 'c2'),
+            PackingItem(id: 'd', name: 'Mapa'),
+          ],
+        );
+
+    test('přesune položku před jinou položku v téže kategorii', () {
+      final list = listWithItems();
+      moveItemInList(list, 'b', targetCategoryId: 'c1', beforeItemId: 'a');
+      expect(list.items.map((i) => i.id), ['b', 'a', 'c', 'd']);
+      expect(list.items.firstWhere((i) => i.id == 'b').categoryId, 'c1');
+    });
+
+    test('přesune položku do jiné kategorie a zařadí ji před cílovou položku',
+        () {
+      final list = listWithItems();
+      moveItemInList(list, 'a', targetCategoryId: 'c2', beforeItemId: 'c');
+      final a = list.items.firstWhere((i) => i.id == 'a');
+      expect(a.categoryId, 'c2');
+      expect(list.items.map((i) => i.id), ['b', 'a', 'c', 'd']);
+    });
+
+    test('bez beforeItemId přesune položku na konec seznamu', () {
+      final list = listWithItems();
+      moveItemInList(list, 'a', targetCategoryId: 'c2');
+      expect(list.items.map((i) => i.id), ['b', 'c', 'd', 'a']);
+      expect(list.items.firstWhere((i) => i.id == 'a').categoryId, 'c2');
+    });
+
+    test('přesun na kategorii (bez cílové položky) vloží na konec kategorie '
+        'i mezi nesouvisející položky', () {
+      final list = listWithItems();
+      // 'd' (bez kategorie) přesuneme do 'c1' – měla by skončit až za
+      // ostatními položkami 'c1', přestože je v poli mezi nimi vložena
+      // fyzicky na konec.
+      moveItemInList(list, 'd', targetCategoryId: 'c1');
+      final c1Items =
+          list.items.where((i) => i.categoryId == 'c1').map((i) => i.id);
+      expect(c1Items, ['a', 'b', 'd']);
+    });
+
+    test('zrušit kategorii nastavením targetCategoryId na null', () {
+      final list = listWithItems();
+      moveItemInList(list, 'a', targetCategoryId: null);
+      expect(list.items.firstWhere((i) => i.id == 'a').categoryId, isNull);
+    });
+
+    test('beforeItemId rovné itemId je no-op', () {
+      final list = listWithItems();
+      moveItemInList(list, 'a', targetCategoryId: 'c2', beforeItemId: 'a');
+      expect(list.items.map((i) => i.id), ['a', 'b', 'c', 'd']);
+      expect(list.items.firstWhere((i) => i.id == 'a').categoryId, 'c1');
+    });
+
+    test('neexistující beforeItemId přesune položku na konec', () {
+      final list = listWithItems();
+      moveItemInList(list, 'a',
+          targetCategoryId: 'c1', beforeItemId: 'neexistuje');
+      expect(list.items.map((i) => i.id), ['b', 'c', 'd', 'a']);
+    });
+
+    test('neexistující itemId nic nezmění', () {
+      final list = listWithItems();
+      moveItemInList(list, 'neexistuje', targetCategoryId: 'c1');
+      expect(list.items.map((i) => i.id), ['a', 'b', 'c', 'd']);
+    });
+  });
 }

@@ -156,42 +156,59 @@ class _EditCategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
-    return Padding(
-      padding: EdgeInsets.only(left: depth * 16.0),
-      child: ListTile(
-        onTap: () => state.toggleCategoryExpanded(listId, category.id),
-        leading: Icon(category.expanded
-            ? Icons.keyboard_arrow_down
-            : Icons.keyboard_arrow_right),
-        title: Row(
-          children: [
-            const Icon(Icons.folder_outlined, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(category.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              tooltip: S.addItemToCategory,
-              onPressed: () => _onAddItem(context),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) => _onMenu(context, v),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'subcat', child: Text(S.addSubcategory)),
-                PopupMenuItem(value: 'rename', child: Text(S.rename)),
-                PopupMenuItem(value: 'delete', child: Text(S.delete)),
-              ],
-            ),
-          ],
-        ),
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) => state.moveItem(
+        listId,
+        details.data,
+        targetCategoryId: category.id,
       ),
+      builder: (context, candidateData, rejectedData) {
+        final highlighted = candidateData.isNotEmpty;
+        return Container(
+          color: highlighted
+              ? Theme.of(context).colorScheme.primary.withAlpha(31)
+              : null,
+          child: Padding(
+            padding: EdgeInsets.only(left: depth * 16.0),
+            child: ListTile(
+              onTap: () => state.toggleCategoryExpanded(listId, category.id),
+              leading: Icon(category.expanded
+                  ? Icons.keyboard_arrow_down
+                  : Icons.keyboard_arrow_right),
+              title: Row(
+                children: [
+                  const Icon(Icons.folder_outlined, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(category.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: S.addItemToCategory,
+                    onPressed: () => _onAddItem(context),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) => _onMenu(context, v),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                          value: 'subcat', child: Text(S.addSubcategory)),
+                      PopupMenuItem(value: 'rename', child: Text(S.rename)),
+                      PopupMenuItem(value: 'delete', child: Text(S.delete)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -289,30 +306,62 @@ class _EditItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
-    return Dismissible(
-      key: ValueKey('dismiss_${item.id}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        color: Theme.of(context).colorScheme.error,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
+    final tile = Padding(
+      padding: EdgeInsets.only(left: depth * 16.0),
+      child: ListTile(
+        leading: const Icon(Icons.drag_indicator),
+        title: Text(item.name),
+        subtitle: Text(_modeLabel(item)),
+        onTap: () => _onEdit(context),
       ),
-      confirmDismiss: (_) => showConfirmDialog(
-        context,
-        title: S.deleteItemConfirm,
-        confirmLabel: S.delete,
-        destructive: true,
+    );
+
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => details.data != item.id,
+      onAcceptWithDetails: (details) => state.moveItem(
+        listId,
+        details.data,
+        targetCategoryId: item.categoryId,
+        beforeItemId: item.id,
       ),
-      onDismissed: (_) => state.deleteItem(listId, item.id),
-      child: Padding(
-        padding: EdgeInsets.only(left: depth * 16.0),
-        child: ListTile(
-          title: Text(item.name),
-          subtitle: Text(_modeLabel(item)),
-          onTap: () => _onEdit(context),
-        ),
-      ),
+      builder: (context, candidateData, rejectedData) {
+        final highlighted = candidateData.isNotEmpty;
+        return Container(
+          decoration: highlighted
+              ? BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                )
+              : null,
+          child: Dismissible(
+            key: ValueKey('dismiss_${item.id}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              color: Theme.of(context).colorScheme.error,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (_) => showConfirmDialog(
+              context,
+              title: S.deleteItemConfirm,
+              confirmLabel: S.delete,
+              destructive: true,
+            ),
+            onDismissed: (_) => state.deleteItem(listId, item.id),
+            child: LongPressDraggable<String>(
+              data: item.id,
+              feedback: _ItemDragFeedback(name: item.name),
+              childWhenDragging: Opacity(opacity: 0.3, child: tile),
+              child: tile,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -341,6 +390,28 @@ class _EditItemTile extends StatelessWidget {
     );
     updated.categoryId = result.categoryId;
     await context.read<AppState>().updateItem(listId, updated);
+  }
+}
+
+/// Vzhled položky během tažení prstem (dlouhé podržení → přesun).
+class _ItemDragFeedback extends StatelessWidget {
+  final String name;
+  const _ItemDragFeedback({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(8),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(name, overflow: TextOverflow.ellipsis),
+        ),
+      ),
+    );
   }
 }
 
