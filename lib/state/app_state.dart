@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
 import '../logic/category_tree.dart';
+import '../logic/list_actions.dart';
 import '../models/packing_category.dart';
 import '../models/packing_item.dart';
 import '../models/packing_list.dart';
@@ -125,6 +126,27 @@ class AppState extends ChangeNotifier {
     final idx = list.items.indexWhere((i) => i.id == itemId);
     if (idx == -1) return;
     list.items[idx].categoryId = categoryId;
+    await _save(list);
+  }
+
+  /// Smaže všechny označené položky ([itemIds]) najednou.
+  Future<void> deleteItems(String listId, Set<String> itemIds) async {
+    final list = listById(listId);
+    if (list == null) return;
+    bulkDeleteItems(list, itemIds);
+    await _save(list);
+  }
+
+  /// Přesune všechny označené položky ([itemIds]) do kategorie [categoryId]
+  /// (`null` = bez kategorie) najednou.
+  Future<void> moveItemsToCategory(
+    String listId,
+    Set<String> itemIds,
+    String? categoryId,
+  ) async {
+    final list = listById(listId);
+    if (list == null) return;
+    bulkMoveItemsToCategory(list, itemIds, categoryId);
     await _save(list);
   }
 

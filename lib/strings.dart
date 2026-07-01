@@ -55,6 +55,24 @@ class S {
   static const value = 'Hodnota';
   static const deleteItemConfirm = 'Smazat tuto položku?';
 
+  // Hromadný výběr položek
+  static const selectItems = 'Vybrat položky';
+  static const selectionCancel = 'Zrušit výběr';
+
+  static String selectedCount(int n) {
+    final word = n == 1
+        ? 'položka'
+        : (n >= 2 && n <= 4 ? 'položky' : 'položek');
+    return '$n $word vybráno';
+  }
+
+  static String deleteSelectedConfirm(int n) {
+    final word = n == 1
+        ? 'položku'
+        : (n >= 2 && n <= 4 ? 'položky' : 'položek');
+    return 'Smazat $n $word?';
+  }
+
   // Import
   static const importTitle = 'Import položek';
   static const importHint =
