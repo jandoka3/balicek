@@ -52,6 +52,10 @@ jobs:
           # Claude vytváří PR vždy do větve dev (ne do main)
           base_branch: dev
 
+          # Povolení nástrojů, aby Claude mohl v neinteraktivním běhu sám spouštět
+          # flutter/dart příkazy (analyze, test, pub get) bez interaktivního schválení.
+          claude_args: --allowedTools "Bash(flutter *),Bash(dart *)"
+
           # Natvrdo daná pravidla pro každý běh: buď vznikne PR, nebo se jasně nahlásí selhání.
           prompt: |
             Řiď se souborem CLAUDE.md v repozitáři.
