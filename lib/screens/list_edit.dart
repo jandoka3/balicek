@@ -11,10 +11,20 @@ import '../state/app_state.dart';
 import '../strings.dart';
 import '../widgets/dialogs.dart';
 
-class ListEditScreen extends StatelessWidget {
+class ListEditScreen extends StatefulWidget {
   final String listId;
 
   const ListEditScreen({super.key, required this.listId});
+
+  @override
+  State<ListEditScreen> createState() => _ListEditScreenState();
+}
+
+class _ListEditScreenState extends State<ListEditScreen> {
+  final Set<String> _selectedIds = {};
+  bool _selectionMode = false;
+
+  String get listId => widget.listId;
 
   @override
   Widget build(BuildContext context) {
@@ -29,19 +39,50 @@ class ListEditScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(S.editTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.create_new_folder_outlined),
-            tooltip: S.addCategory,
-            onPressed: () => _onAddCategory(context, parentId: null),
-          ),
-          IconButton(
-            icon: const Icon(Icons.text_snippet_outlined),
-            tooltip: S.importTitle,
-            onPressed: () => _onImport(context),
-          ),
-        ],
+        leading: _selectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: S.selectionCancel,
+                onPressed: _exitSelectionMode,
+              )
+            : null,
+        title: Text(
+          _selectionMode ? S.selectedCount(_selectedIds.length) : S.editTitle,
+        ),
+        actions: _selectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.drive_file_move_outline),
+                  tooltip: S.moveToCategory,
+                  onPressed: _selectedIds.isEmpty
+                      ? null
+                      : () => _onMoveSelected(context, list),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: S.delete,
+                  onPressed: _selectedIds.isEmpty
+                      ? null
+                      : () => _onDeleteSelected(context),
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  tooltip: S.selectItems,
+                  onPressed: list.items.isEmpty ? null : _enterSelectionMode,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  tooltip: S.addCategory,
+                  onPressed: () => _onAddCategory(context, parentId: null),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.text_snippet_outlined),
+                  tooltip: S.importTitle,
+                  onPressed: () => _onImport(context),
+                ),
+              ],
       ),
       body: empty
           ? const Center(
@@ -50,13 +91,76 @@ class ListEditScreen extends StatelessWidget {
                 child: Text(S.emptyItems, textAlign: TextAlign.center),
               ),
             )
-          : _EditTree(listId: listId, list: list),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _onAddItem(context, categoryId: null),
-        icon: const Icon(Icons.add),
-        label: const Text(S.addItem),
-      ),
+          : _EditTree(
+              listId: listId,
+              list: list,
+              selectionMode: _selectionMode,
+              selectedIds: _selectedIds,
+              onToggleSelect: _toggleSelected,
+              onLongPressItem: _selectAndEnterSelectionMode,
+            ),
+      floatingActionButton: _selectionMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _onAddItem(context, categoryId: null),
+              icon: const Icon(Icons.add),
+              label: const Text(S.addItem),
+            ),
     );
+  }
+
+  void _enterSelectionMode() {
+    setState(() => _selectionMode = true);
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _selectAndEnterSelectionMode(String itemId) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(itemId);
+    });
+  }
+
+  void _toggleSelected(String itemId) {
+    setState(() {
+      if (!_selectedIds.remove(itemId)) {
+        _selectedIds.add(itemId);
+      }
+      if (_selectedIds.isEmpty) _selectionMode = false;
+    });
+  }
+
+  Future<void> _onMoveSelected(BuildContext context, PackingList list) async {
+    final state = context.read<AppState>();
+    final categoryId = await showCategoryPickerDialog(context, list: list);
+    if (categoryId == null || !context.mounted) return;
+    await state.moveItemsToCategory(
+      listId,
+      Set.of(_selectedIds),
+      categoryId.isEmpty ? null : categoryId,
+    );
+    if (!mounted) return;
+    _exitSelectionMode();
+  }
+
+  Future<void> _onDeleteSelected(BuildContext context) async {
+    final state = context.read<AppState>();
+    final confirmed = await showConfirmDialog(
+      context,
+      title: S.deleteSelectedConfirm(_selectedIds.length),
+      confirmLabel: S.delete,
+      destructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+    await state.deleteItems(listId, Set.of(_selectedIds));
+    if (!mounted) return;
+    _exitSelectionMode();
   }
 
   Future<void> _onAddItem(
@@ -104,7 +208,19 @@ class ListEditScreen extends StatelessWidget {
 class _EditTree extends StatelessWidget {
   final String listId;
   final PackingList list;
-  const _EditTree({required this.listId, required this.list});
+  final bool selectionMode;
+  final Set<String> selectedIds;
+  final ValueChanged<String> onToggleSelect;
+  final ValueChanged<String> onLongPressItem;
+
+  const _EditTree({
+    required this.listId,
+    required this.list,
+    required this.selectionMode,
+    required this.selectedIds,
+    required this.onToggleSelect,
+    required this.onLongPressItem,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +252,10 @@ class _EditTree extends StatelessWidget {
         list: list,
         item: item,
         depth: depth,
+        selectionMode: selectionMode,
+        selected: selectedIds.contains(item.id),
+        onToggleSelect: onToggleSelect,
+        onLongPress: onLongPressItem,
       ));
     }
   }
@@ -294,6 +414,10 @@ class _EditItemTile extends StatelessWidget {
   final PackingList list;
   final PackingItem item;
   final int depth;
+  final bool selectionMode;
+  final bool selected;
+  final ValueChanged<String> onToggleSelect;
+  final ValueChanged<String> onLongPress;
 
   const _EditItemTile({
     super.key,
@@ -301,20 +425,46 @@ class _EditItemTile extends StatelessWidget {
     required this.list,
     required this.item,
     required this.depth,
+    required this.selectionMode,
+    required this.selected,
+    required this.onToggleSelect,
+    required this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
+    // Úchyt pro tažení (drag & drop). V režimu výběru se nezobrazuje –
+    // místo něj je vlevo checkbox.
+    final dragHandle = LongPressDraggable<String>(
+      data: item.id,
+      feedback: _ItemDragFeedback(name: item.name),
+      child: const Icon(Icons.drag_indicator),
+    );
+
     final tile = Padding(
       padding: EdgeInsets.only(left: depth * 16.0),
       child: ListTile(
-        leading: const Icon(Icons.drag_indicator),
+        leading: selectionMode
+            ? Checkbox(
+                value: selected,
+                onChanged: (_) => onToggleSelect(item.id),
+              )
+            : dragHandle,
         title: Text(item.name),
         subtitle: Text(_modeLabel(item)),
-        onTap: () => _onEdit(context),
+        onTap: () =>
+            selectionMode ? onToggleSelect(item.id) : _onEdit(context),
+        // Dlouhé podržení řádku zapne režim výběru (mimo tažení za úchyt).
+        onLongPress: selectionMode ? null : () => onLongPress(item.id),
       ),
     );
+
+    // V režimu výběru je drag & drop i swipe-to-delete vypnutý, aby
+    // nekolidovaly s označováním položek.
+    if (selectionMode) {
+      return tile;
+    }
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) => details.data != item.id,
@@ -353,12 +503,7 @@ class _EditItemTile extends StatelessWidget {
               destructive: true,
             ),
             onDismissed: (_) => state.deleteItem(listId, item.id),
-            child: LongPressDraggable<String>(
-              data: item.id,
-              feedback: _ItemDragFeedback(name: item.name),
-              childWhenDragging: Opacity(opacity: 0.3, child: tile),
-              child: tile,
-            ),
+            child: tile,
           ),
         );
       },

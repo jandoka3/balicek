@@ -127,6 +127,27 @@ class AppState extends ChangeNotifier {
     await _save(list);
   }
 
+  /// Smaže všechny označené položky ([itemIds]) najednou.
+  Future<void> deleteItems(String listId, Set<String> itemIds) async {
+    final list = listById(listId);
+    if (list == null) return;
+    bulkDeleteItems(list, itemIds);
+    await _save(list);
+  }
+
+  /// Přesune všechny označené položky ([itemIds]) do kategorie [categoryId]
+  /// (`null` = bez kategorie) najednou.
+  Future<void> moveItemsToCategory(
+    String listId,
+    Set<String> itemIds,
+    String? categoryId,
+  ) async {
+    final list = listById(listId);
+    if (list == null) return;
+    bulkMoveItemsToCategory(list, itemIds, categoryId);
+    await _save(list);
+  }
+
   // --- Kategorie ---
 
   Future<void> addCategory(String listId, PackingCategory category) async {

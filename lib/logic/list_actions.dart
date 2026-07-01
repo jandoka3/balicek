@@ -141,3 +141,20 @@ void moveItemInList(
     list.items.insert(targetIdx, item);
   }
 }
+
+/// Smaže všechny položky, jejichž id je v [itemIds]. Mění [list] na místě.
+void bulkDeleteItems(PackingList list, Set<String> itemIds) {
+  list.items.removeWhere((i) => itemIds.contains(i.id));
+}
+
+/// Přeřadí všechny položky, jejichž id je v [itemIds], do kategorie
+/// [categoryId] (`null` = bez kategorie). Mění [list] na místě.
+void bulkMoveItemsToCategory(
+  PackingList list,
+  Set<String> itemIds,
+  String? categoryId,
+) {
+  for (final i in list.items) {
+    if (itemIds.contains(i.id)) i.categoryId = categoryId;
+  }
+}

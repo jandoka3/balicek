@@ -264,4 +264,71 @@ void main() {
       expect(list.items.map((i) => i.id), ['a', 'b', 'c', 'd']);
     });
   });
+
+  group('bulkDeleteItems', () {
+    PackingList list() => PackingList(
+          id: 'l',
+          name: 'Test',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          items: [
+            PackingItem(id: 'a', name: 'Tričko'),
+            PackingItem(id: 'b', name: 'Kalhoty'),
+            PackingItem(id: 'c', name: 'Mapa'),
+          ],
+        );
+
+    test('smaže pouze označené položky', () {
+      final l = list();
+      bulkDeleteItems(l, {'a', 'c'});
+      expect(l.items.map((i) => i.id), ['b']);
+    });
+
+    test('prázdná množina id nic nesmaže', () {
+      final l = list();
+      bulkDeleteItems(l, {});
+      expect(l.items.length, 3);
+    });
+
+    test('neexistující id se tiše ignorují', () {
+      final l = list();
+      bulkDeleteItems(l, {'neexistuje'});
+      expect(l.items.length, 3);
+    });
+  });
+
+  group('bulkMoveItemsToCategory', () {
+    PackingList list() => PackingList(
+          id: 'l',
+          name: 'Test',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+          categories: [PackingCategory(id: 'cat1', name: 'Oblečení')],
+          items: [
+            PackingItem(id: 'a', name: 'Tričko', categoryId: 'cat1'),
+            PackingItem(id: 'b', name: 'Kalhoty'),
+            PackingItem(id: 'c', name: 'Mapa'),
+          ],
+        );
+
+    test('přeřadí pouze označené položky do zadané kategorie', () {
+      final l = list();
+      bulkMoveItemsToCategory(l, {'b', 'c'}, 'cat1');
+      expect(l.items.firstWhere((i) => i.id == 'a').categoryId, 'cat1');
+      expect(l.items.firstWhere((i) => i.id == 'b').categoryId, 'cat1');
+      expect(l.items.firstWhere((i) => i.id == 'c').categoryId, 'cat1');
+    });
+
+    test('categoryId null přesune položky mimo kategorii', () {
+      final l = list();
+      bulkMoveItemsToCategory(l, {'a'}, null);
+      expect(l.items.firstWhere((i) => i.id == 'a').categoryId, isNull);
+    });
+
+    test('neoznačené položky zůstanou beze změny', () {
+      final l = list();
+      bulkMoveItemsToCategory(l, {'b'}, 'cat1');
+      expect(l.items.firstWhere((i) => i.id == 'c').categoryId, isNull);
+    });
+  });
 }
