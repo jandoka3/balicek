@@ -51,3 +51,22 @@ jobs:
 
           # Claude vytváří PR vždy do větve dev (ne do main)
           base_branch: dev
+
+          # Natvrdo daná pravidla pro každý běh: buď vznikne PR, nebo se jasně nahlásí selhání.
+          prompt: |
+            Řiď se souborem CLAUDE.md v repozitáři.
+
+            Postup u každého úkolu ze zadání:
+            1. Implementuj požadovanou změnu.
+            2. Spusť `flutter analyze` a `flutter test` a oprav případné chyby.
+            3. Otevři pull request do větve dev.
+
+            DŮLEŽITÉ – hlášení výsledku:
+            - Považuj úkol za HOTOVÝ jen tehdy, když reálně vznikl pull request se změnami.
+            - Pokud z JAKÉHOKOLI důvodu pull request nevznikne (nedokázal jsi to
+              implementovat, testy nejdou opravit, zadání je nejasné, došlo k chybě,
+              nebo jsi neprovedl žádnou změnu kódu), NEHLAS „hotovo" ani „finished".
+              Místo toho napiš do issue komentář, který začíná přesně:
+              „❌ NEPOVEDLO SE" a pod tím konkrétní důvod, proč PR nevznikl, a co je potřeba doplnit.
+            - Nikdy nekonči jen obecnou větou typu „I'll analyze this and get back to you"
+              bez skutečné akce. Vždy buď dodej PR, nebo jasně nahlas selhání s důvodem.
