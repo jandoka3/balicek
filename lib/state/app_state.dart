@@ -107,25 +107,23 @@ class AppState extends ChangeNotifier {
     await _save(list);
   }
 
-  /// [newIndex] je už upravený index cílové pozice (z onReorderItem).
-  Future<void> reorderItems(String listId, int oldIndex, int newIndex) async {
-    final list = listById(listId);
-    if (list == null) return;
-    final item = list.items.removeAt(oldIndex);
-    list.items.insert(newIndex, item);
-    await _save(list);
-  }
-
-  Future<void> moveItemToCategory(
+  /// Přesune položku [itemId] do kategorie [targetCategoryId] a zařadí ji
+  /// před položku [beforeItemId] (na konec, pokud je `null`). Používá se pro
+  /// drag & drop – reorder i přesun mezi kategoriemi v jedné operaci.
+  Future<void> moveItem(
     String listId,
-    String itemId,
-    String? categoryId,
-  ) async {
+    String itemId, {
+    required String? targetCategoryId,
+    String? beforeItemId,
+  }) async {
     final list = listById(listId);
     if (list == null) return;
-    final idx = list.items.indexWhere((i) => i.id == itemId);
-    if (idx == -1) return;
-    list.items[idx].categoryId = categoryId;
+    moveItemInList(
+      list,
+      itemId,
+      targetCategoryId: targetCategoryId,
+      beforeItemId: beforeItemId,
+    );
     await _save(list);
   }
 

@@ -113,6 +113,35 @@ PackingCategory newCategory(String name, {String? parentId}) {
   );
 }
 
+/// Přesune položku [itemId] do kategorie [targetCategoryId] (`null` = bez
+/// kategorie) a zařadí ji bezprostředně před položku [beforeItemId] (nebo na
+/// konec seznamu, pokud je `null` nebo nebyla nalezena). Mění [list] na místě.
+///
+/// Slouží pro drag & drop v editaci seznamu – jedna operace pokrývá jak
+/// změnu pořadí položek, tak přesun do jiné kategorie.
+void moveItemInList(
+  PackingList list,
+  String itemId, {
+  required String? targetCategoryId,
+  String? beforeItemId,
+}) {
+  if (itemId == beforeItemId) return;
+  final idx = list.items.indexWhere((i) => i.id == itemId);
+  if (idx == -1) return;
+
+  final item = list.items.removeAt(idx);
+  item.categoryId = targetCategoryId;
+
+  final targetIdx = beforeItemId == null
+      ? -1
+      : list.items.indexWhere((i) => i.id == beforeItemId);
+  if (targetIdx == -1) {
+    list.items.add(item);
+  } else {
+    list.items.insert(targetIdx, item);
+  }
+}
+
 /// Smaže všechny položky, jejichž id je v [itemIds]. Mění [list] na místě.
 void bulkDeleteItems(PackingList list, Set<String> itemIds) {
   list.items.removeWhere((i) => itemIds.contains(i.id));
