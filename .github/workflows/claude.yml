@@ -42,12 +42,12 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          # Varianta A: máš předplatné Claude Pro/Max -> na PC spusť `claude setup-token`
-          # a vzniklý token ulož jako secret CLAUDE_CODE_OAUTH_TOKEN. Pak odkomentuj:
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Varianta A (AKTIVNÍ): používá předplatné Claude Pro/Max přes OAuth token.
+          # Token vznikne příkazem `claude setup-token` a uloží se jako secret CLAUDE_CODE_OAUTH_TOKEN.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # Varianta B: API klíč z console.anthropic.com (platí se za spotřebu):
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Varianta B (vypnutá): API klíč z console.anthropic.com – platí se za spotřebu.
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # Claude vytváří PR vždy do větve dev (ne do main)
           base_branch: dev
